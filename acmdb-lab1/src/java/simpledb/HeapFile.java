@@ -15,6 +15,11 @@ import java.util.*;
  */
 public class HeapFile implements DbFile {
 
+    private File file;
+    private TupleDesc desc;
+    private RandomAccessFile stream;
+    private int pageSize = BufferPool.getPageSize();
+
     /**
      * Constructs a heap file backed by the specified file.
      * 
@@ -24,6 +29,13 @@ public class HeapFile implements DbFile {
      */
     public HeapFile(File f, TupleDesc td) {
         // some code goes here
+        file = f;
+        desc = td;
+        try {
+            stream = new RandomAccessFile(file, "rw");
+        } catch (FileNotFoundException ignored) {
+
+        }
     }
 
     /**
@@ -33,7 +45,7 @@ public class HeapFile implements DbFile {
      */
     public File getFile() {
         // some code goes here
-        return null;
+        return file;
     }
 
     /**
@@ -47,7 +59,7 @@ public class HeapFile implements DbFile {
      */
     public int getId() {
         // some code goes here
-        throw new UnsupportedOperationException("implement this");
+        return file.getAbsoluteFile().hashCode();
     }
 
     /**
@@ -57,12 +69,23 @@ public class HeapFile implements DbFile {
      */
     public TupleDesc getTupleDesc() {
         // some code goes here
-        throw new UnsupportedOperationException("implement this");
+        return desc;
     }
 
     // see DbFile.java for javadocs
     public Page readPage(PageId pid) {
         // some code goes here
+        if (pid instanceof HeapPageId) {
+            HeapPageId hpid = (HeapPageId) pid;
+            byte[] data = new byte[pageSize];
+            try {
+                stream.seek((long) pageSize * pid.pageNumber());
+                stream.read(data);
+                return new HeapPage(hpid, data);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
         return null;
     }
 
@@ -77,7 +100,12 @@ public class HeapFile implements DbFile {
      */
     public int numPages() {
         // some code goes here
-        return 0;
+        try {
+            return (int)(stream.length()) / pageSize;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return -1;
+        }
     }
 
     // see DbFile.java for javadocs
@@ -96,10 +124,93 @@ public class HeapFile implements DbFile {
         // not necessary for lab1
     }
 
+    class It implements DbFileIterator {
+
+        int pgn, nxpgn;
+        HeapPage pg, nxpg;
+        TransactionId tid;
+        Iterator<Tuple> it, nxit;
+
+        It(TransactionId tid) {
+            tid = tid;
+            close();
+        }
+
+        /**
+         * Opens the iterator
+         *
+         * @throws DbException when there are problems opening/accessing the database.
+         */
+        @Override
+        public void open() throws DbException, TransactionAbortedException {
+            pgn = 0;
+            pg = (HeapPage) Database.getBufferPool()
+                    .getPage(tid, new HeapPageId(getId(), pgn), Permissions.READ_ONLY);
+            it = pg.iterator();
+        }
+
+        /**
+         * @return true if there are more tuples available, false if no more tuples or iterator isn't open.
+         */
+        @Override
+        public boolean hasNext() throws DbException, TransactionAbortedException {
+            if (it == null) return false;
+            if (it.hasNext()) return true;
+            for (nxpgn = pgn + 1; nxpgn < numPages(); nxpgn++) {
+                if ((nxpg = (HeapPage) Database.getBufferPool()
+                        .getPage(tid, new HeapPageId(getId(), nxpgn), Permissions.READ_ONLY))
+                        == null) return false;
+                if ((nxit = nxpg.iterator()) == null) return false;
+                if (!nxit.hasNext()) continue;
+                return true;
+            }
+            return false;
+        }
+
+        /**
+         * Gets the next tuple from the operator (typically implementing by reading
+         * from a child operator or an access method).
+         *
+         * @return The next tuple in the iterator.
+         * @throws NoSuchElementException if there are no more tuples
+         */
+        @Override
+        public Tuple next() throws DbException, TransactionAbortedException, NoSuchElementException {
+            if (it == null) throw new NoSuchElementException();
+            if (it.hasNext()) return it.next();
+            if (nxpgn <= pgn || nxit == null) throw new NoSuchElementException();
+            it = nxit;
+            pg = nxpg;
+            pgn = nxpgn;
+            return it.next();
+        }
+
+        /**
+         * Resets the iterator to the start.
+         *
+         * @throws DbException When rewind is unsupported.
+         */
+        @Override
+        public void rewind() throws DbException, TransactionAbortedException {
+            close();
+            open();
+        }
+
+        /**
+         * Closes the iterator.
+         */
+        @Override
+        public void close() {
+            pgn = nxpgn = -1;
+            pg = nxpg = null;
+            it = nxit = null;
+        }
+    }
+
     // see DbFile.java for javadocs
     public DbFileIterator iterator(TransactionId tid) {
         // some code goes here
-        return null;
+        return new It(tid);
     }
 
 }

@@ -31,6 +31,7 @@ public class Catalog {
     }
 
     private HashMap<Integer, Table> tables;
+    private HashMap<String, Integer> names;
 
     /**
      * Constructor.
@@ -39,6 +40,7 @@ public class Catalog {
     public Catalog() {
         // some code goes here
         tables = new HashMap<>();
+        names = new HashMap<>();
     }
 
     /**
@@ -53,6 +55,7 @@ public class Catalog {
     public void addTable(DbFile file, String name, String pkeyField) {
         // some code goes here
         tables.put(file.getId(), new Table(file, name, pkeyField));
+        names.put(name, file.getId());
     }
 
     public void addTable(DbFile file, String name) {
@@ -88,7 +91,10 @@ public class Catalog {
      */
     public int getTableId(String name) throws NoSuchElementException {
         // some code goes here
-        return getTableInfo(t -> t.name.equals(name), t -> t.file.getId());
+        if (name == null) throw new NoSuchElementException();
+        Integer ret = names.get(name);
+        if (ret == null) throw new NoSuchElementException();
+        return ret;
     }
 
     /**

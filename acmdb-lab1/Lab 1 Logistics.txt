@@ -1,0 +1,22 @@
+Lab 1 Logistics
+
+* Describe any design decisions you made. These may be minimal for Lab 1.
+
+Most tasks in this lab consists only of completing the classes. It is quite straight forward to follow the instructions in the document.
+
+The only two new designs are the iterator class in HeapPage and HeapFile, designed to iterate through all non-empty slots on a page and in a file respectively. I store an index of slot in the page iterator to indicate the position on the page. As for the latter one, I store a page iterator together with the page number (and also the page pointer). When checking for next slot, it first seeks slots on the current page, then go to the nearest page containing an non-empty slot.
+
+* Discuss and justify any changes you made to the API.
+
+For code simplification, I add an utility class 'U' with some static functions to make java more 'modern'.
+
+No other public changes are made to the API as I only add some private utility function to classes. 
+
+* Describe any missing or incomplete elements of your code.
+
+No as far as I know.
+
+* Describe how long you spent on the lab, and whether there was anything you found particularly difficult or confusing. 
+
+I spent about a day on the lab. There are no particularly confusing parts of this lab from my view.
+

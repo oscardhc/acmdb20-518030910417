@@ -55,7 +55,7 @@ public class Tuple implements Serializable {
      */
     public void setRecordId(RecordId rid) {
         // some code goes here
-        rid = rid;
+        recID = rid;
     }
 
     /**

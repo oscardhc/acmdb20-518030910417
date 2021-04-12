@@ -3,9 +3,6 @@ package simpledb;
 import java.io.*;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * BufferPool manages the reading and writing of pages into memory from
@@ -70,13 +67,18 @@ public class BufferPool {
      * @param pid the ID of the requested page
      * @param perm the requested permissions on the page
      */
-    public  Page getPage(TransactionId tid, PageId pid, Permissions perm)
-        throws TransactionAbortedException, DbException {
+    public Page getPage(TransactionId tid, PageId pid, Permissions perm)
+            throws TransactionAbortedException, DbException {
         // some code goes here
         return pages.stream()
-                .filter(p -> p.getId() == pid)
+                .filter(p -> p.getId().equals(pid))
                 .findAny()
-                .orElseThrow(() -> new DbException(""));
+                .orElseGet(() ->
+                        U.with(Database.getCatalog()
+                                        .getDatabaseFile(pid.getTableId())
+                                        .readPage(pid),
+                                pages::add)
+                );
     }
 
     /**
