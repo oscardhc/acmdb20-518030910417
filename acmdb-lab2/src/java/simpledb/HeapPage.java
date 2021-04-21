@@ -244,6 +244,10 @@ public class HeapPage implements Page {
     public void deleteTuple(Tuple t) throws DbException {
         // some code goes here
         // not necessary for lab1
+        for (int i = 0; i < numSlots; i++) if (isSlotUsed(i) && tuples[i] == t) {
+            markSlotUsed(i, false);
+            return;
+        }
     }
 
     /**
@@ -256,6 +260,11 @@ public class HeapPage implements Page {
     public void insertTuple(Tuple t) throws DbException {
         // some code goes here
         // not necessary for lab1
+        for (int i = 0; i < numSlots; i++) if (!isSlotUsed(i)) {
+            tuples[i] = t;
+            markSlotUsed(i, true);
+            return;
+        }
     }
 
     /**
@@ -291,7 +300,7 @@ public class HeapPage implements Page {
      */
     public boolean isSlotUsed(int i) {
         // some code goes here
-        return ((header[i >> 3] >> (i & 7)) & 1) != 0;
+        return (header[i >> 3] & (1 << (i & 7))) > 0;
     }
 
     /**
@@ -300,6 +309,8 @@ public class HeapPage implements Page {
     private void markSlotUsed(int i, boolean value) {
         // some code goes here
         // not necessary for lab1
+        if (value) header[i >> 3] |= (1 << (i & 7));
+        else header[i >> 3] &= (~(1 << (i & 7)));
     }
 
     class TupleIterator implements Iterator<Tuple> {
