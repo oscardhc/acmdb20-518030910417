@@ -1,0 +1,26 @@
+Lab 1 Logistics
+
+* Describe any design decisions you made.
+
+1. The eviction policy.
+
+I simply use LRU as my eviction policy, since java has provided an Array List class, the position of a page in the list can donate the time it's used. The bigger the index is, the older the corresponding page is.
+Every time I fetch a page, no matter whether it's already in the buffer pool, I try to delete it from the page list pool, and then add it back to the back of the list.
+
+2. The insertion and deletion for B+ Tree.
+
+Actually we are not asked to implement the whole insertion/deletion procedure. Instead, a small part of methods like splitting and merging are finished by myself. Several utility methods are provided so that the implementation is actually not hard. The basic thought is to use page iterator/reverseiterator to iterate through tuples/entries that will be deleted from some page and will be added to another. Then what's left is only to maintain the relevant relationship like parent/son and sibling. 
+
+
+* Discuss and justify any changes you made to the API.
+
+No changes are made to the API. Only asked methods are completed.
+
+* Describe any missing or incomplete elements of your code.
+
+No as far as I know.
+
+* Describe how long you spent on the lab, and whether there was anything you found particularly difficult or confusing. 
+
+I spent about half a day on the lab. One thing that make me spend some time debugging is that I copied my Insert Tuple method to Delete Tuple in Buffer Pool, forgetting even to change the method called for Pages.
+
