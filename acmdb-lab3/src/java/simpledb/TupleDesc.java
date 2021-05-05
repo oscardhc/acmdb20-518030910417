@@ -208,6 +208,8 @@ public class TupleDesc implements Serializable {
      */
     public String toString() {
         // some code goes here
-        return "";
+        String re = "";
+        for (TDItem i: items) re += (i.fieldType.toString() + ", ");
+        return re;
     }
 }

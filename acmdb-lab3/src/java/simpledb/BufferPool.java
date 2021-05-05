@@ -54,6 +54,14 @@ public class BufferPool {
     	BufferPool.pageSize = PAGE_SIZE;
     }
 
+    private void insertPage(Page pg) {
+        pages.remove(pg);
+        pages.add(pg);
+        try {
+            if (pages.size() == npages) evictPage();
+        } catch (DbException e) {}
+    }
+
     /**
      * Retrieve the specified page with the associated permissions.
      * Will acquire a lock and may block if that lock is held by another
@@ -80,9 +88,7 @@ public class BufferPool {
                                 .getDatabaseFile(pid.getTableId())
                                 .readPage(pid)
                 );
-        pages.remove(pg);
-        pages.add(pg);
-        if (pages.size() == npages) evictPage();
+        insertPage(pg);
         return pg;
     }
 
@@ -153,7 +159,10 @@ public class BufferPool {
         Database.getCatalog()
                 .getDatabaseFile(tableId)
                 .insertTuple(tid, t)
-                .forEach(p -> p.markDirty(true, tid));
+                .forEach(p -> {
+                    p.markDirty(true, tid);
+                    insertPage(p);
+                });
     }
 
     /**
@@ -176,7 +185,10 @@ public class BufferPool {
         Database.getCatalog()
                 .getDatabaseFile(t.getRecordId().getPageId().getTableId())
                 .deleteTuple(tid, t)
-                .forEach(p -> p.markDirty(true, tid));
+                .forEach(p -> {
+                    p.markDirty(true, tid);
+                    insertPage(p);
+                });
     }
 
     /**

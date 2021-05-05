@@ -1,11 +1,17 @@
 package simpledb;
 
+import java.util.*;
+
 /**
  * Knows how to compute some aggregate over a set of StringFields.
  */
 public class StringAggregator implements Aggregator {
 
     private static final long serialVersionUID = 1L;
+
+    private int gbfield, afield;
+    private Type gbfieldtype;
+    private Op what;
 
     /**
      * Aggregate constructor
@@ -18,7 +24,14 @@ public class StringAggregator implements Aggregator {
 
     public StringAggregator(int gbfield, Type gbfieldtype, int afield, Op what) {
         // some code goes here
+        if (what != Op.COUNT) throw new IllegalArgumentException();
+        this.gbfield = gbfield;
+        this.afield = afield;
+        this.gbfieldtype = gbfieldtype;
+        this.what = what;
     }
+
+    private HashMap<Object, Integer> m = new HashMap<>();
 
     /**
      * Merge a new tuple into the aggregate, grouping as indicated in the constructor
@@ -26,6 +39,14 @@ public class StringAggregator implements Aggregator {
      */
     public void mergeTupleIntoGroup(Tuple tup) {
         // some code goes here
+        Field cur = gbfield == NO_GROUPING ? null : tup.getField(gbfield);
+        Object key = gbfield == NO_GROUPING ? -1 : cur;
+        Integer i = m.get(key);
+        if (i == null) {
+            m.put(key, 1);
+        } else {
+            m.put(key, i + 1);
+        }
     }
 
     /**
@@ -38,7 +59,17 @@ public class StringAggregator implements Aggregator {
      */
     public DbIterator iterator() {
         // some code goes here
-        throw new UnsupportedOperationException("please implement me for lab3");
+        boolean nogroup = gbfield == NO_GROUPING;
+        TupleDesc td = nogroup ? new TupleDesc(new Type[]{Type.INT_TYPE}) : new TupleDesc(new Type[]{gbfieldtype, Type.INT_TYPE});
+        ArrayList<Tuple> hh = new ArrayList<>();
+        for (Map.Entry<Object, Integer> e: m.entrySet()) {
+            Tuple t = new Tuple(td);
+            int val = e.getValue();
+            if (!nogroup) t.setField(0, (IntField)(e.getKey()));
+            t.setField(nogroup ? 0 :1, new IntField(val));
+            hh.add(t);
+        }
+        return new TupleIterator(td, hh);
     }
 
 }

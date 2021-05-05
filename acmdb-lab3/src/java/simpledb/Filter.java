@@ -5,9 +5,11 @@ import java.util.*;
 /**
  * Filter is an operator that implements a relational select.
  */
-public class Filter extends Operator {
+public class Filter extends SingleChildOperator {
 
     private static final long serialVersionUID = 1L;
+
+    private Predicate p;
 
     /**
      * Constructor accepts a predicate to apply and a child operator to read
@@ -20,29 +22,18 @@ public class Filter extends Operator {
      */
     public Filter(Predicate p, DbIterator child) {
         // some code goes here
+        this.p = p;
+        this.child = child;
     }
 
     public Predicate getPredicate() {
         // some code goes here
-        return null;
+        return p;
     }
 
     public TupleDesc getTupleDesc() {
         // some code goes here
-        return null;
-    }
-
-    public void open() throws DbException, NoSuchElementException,
-            TransactionAbortedException {
-        // some code goes here
-    }
-
-    public void close() {
-        // some code goes here
-    }
-
-    public void rewind() throws DbException, TransactionAbortedException {
-        // some code goes here
+        return child.getTupleDesc();
     }
 
     /**
@@ -57,18 +48,12 @@ public class Filter extends Operator {
     protected Tuple fetchNext() throws NoSuchElementException,
             TransactionAbortedException, DbException {
         // some code goes here
-        return null;
-    }
-
-    @Override
-    public DbIterator[] getChildren() {
-        // some code goes here
-        return null;
-    }
-
-    @Override
-    public void setChildren(DbIterator[] children) {
-        // some code goes here
+        Tuple nx = null;
+        while (!(nx != null && p.filter(nx)) && child.hasNext()) {
+            nx = child.next();
+        }
+        if (nx != null && !p.filter(nx)) nx = null;
+        return nx;
     }
 
 }

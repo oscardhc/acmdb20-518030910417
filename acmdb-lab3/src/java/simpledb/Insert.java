@@ -1,13 +1,18 @@
 package simpledb;
 
+import java.io.IOException;
+
 /**
  * Inserts tuples read from the child operator into the tableId specified in the
  * constructor
  */
-public class Insert extends Operator {
+public class Insert extends SingleChildOperator {
 
     private static final long serialVersionUID = 1L;
 
+    private TransactionId tid;
+    private int tableId;
+    private boolean called = false;
     /**
      * Constructor.
      *
@@ -24,23 +29,14 @@ public class Insert extends Operator {
     public Insert(TransactionId t,DbIterator child, int tableId)
             throws DbException {
         // some code goes here
+        this.tid = t;
+        this.child = child;
+        this.tableId = tableId;
     }
 
     public TupleDesc getTupleDesc() {
         // some code goes here
-        return null;
-    }
-
-    public void open() throws DbException, TransactionAbortedException {
-        // some code goes here
-    }
-
-    public void close() {
-        // some code goes here
-    }
-
-    public void rewind() throws DbException, TransactionAbortedException {
-        // some code goes here
+        return new TupleDesc(new Type[]{Type.INT_TYPE});
     }
 
     /**
@@ -58,17 +54,20 @@ public class Insert extends Operator {
      */
     protected Tuple fetchNext() throws TransactionAbortedException, DbException {
         // some code goes here
-        return null;
+        if (called) return null;
+        else {
+            Tuple t = new Tuple(getTupleDesc());
+            int cnt = 0;
+            while (child.hasNext()) {
+                try {
+                    Database.getBufferPool().insertTuple(tid, tableId, child.next());
+                    cnt += 1;
+                } catch (IOException e) {throw new DbException("error");}
+            }
+            t.setField(0, new IntField(cnt));
+            called = true;
+            return t;
+        }
     }
 
-    @Override
-    public DbIterator[] getChildren() {
-        // some code goes here
-        return null;
-    }
-
-    @Override
-    public void setChildren(DbIterator[] children) {
-        // some code goes here
-    }
 }

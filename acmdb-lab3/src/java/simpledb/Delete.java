@@ -6,10 +6,12 @@ import java.io.IOException;
  * The delete operator. Delete reads tuples from its child operator and removes
  * them from the table they belong to.
  */
-public class Delete extends Operator {
+public class Delete extends SingleChildOperator {
 
     private static final long serialVersionUID = 1L;
 
+    private TransactionId tid;
+    private boolean called = false;
     /**
      * Constructor specifying the transaction that this delete belongs to as
      * well as the child to read from.
@@ -21,23 +23,13 @@ public class Delete extends Operator {
      */
     public Delete(TransactionId t, DbIterator child) {
         // some code goes here
+        this.tid = t;
+        this.child = child;
     }
 
     public TupleDesc getTupleDesc() {
         // some code goes here
-        return null;
-    }
-
-    public void open() throws DbException, TransactionAbortedException {
-        // some code goes here
-    }
-
-    public void close() {
-        // some code goes here
-    }
-
-    public void rewind() throws DbException, TransactionAbortedException {
-        // some code goes here
+        return new TupleDesc(new Type[]{Type.INT_TYPE});
     }
 
     /**
@@ -51,18 +43,22 @@ public class Delete extends Operator {
      */
     protected Tuple fetchNext() throws TransactionAbortedException, DbException {
         // some code goes here
-        return null;
-    }
-
-    @Override
-    public DbIterator[] getChildren() {
-        // some code goes here
-        return null;
-    }
-
-    @Override
-    public void setChildren(DbIterator[] children) {
-        // some code goes here
+        if (called) return null;
+        else {
+            Tuple t = new Tuple(getTupleDesc());
+            int cnt = 0;
+            while (child.hasNext()) {
+                try {
+                    Database.getBufferPool().deleteTuple(tid, child.next());
+                    cnt += 1;
+                } catch (IOException e) {
+                    throw new DbException("");
+                }
+            }
+            t.setField(0, new IntField(cnt));
+            called = true;
+            return t;
+        }
     }
 
 }

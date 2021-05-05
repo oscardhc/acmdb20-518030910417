@@ -93,6 +93,8 @@ public class HeapFile implements DbFile {
     public void writePage(Page page) throws IOException {
         // some code goes here
         // not necessary for lab1
+        stream.seek(page.getId().pageNumber() * pageSize);
+        stream.write(page.getPageData(), 0, pageSize);
     }
 
     /**
@@ -108,20 +110,43 @@ public class HeapFile implements DbFile {
         }
     }
 
+    private ArrayList<Page> createList(Page p) {
+        ArrayList<Page> a = new ArrayList<>();
+        a.add(p);
+        return a;
+    }
+
     // see DbFile.java for javadocs
     public ArrayList<Page> insertTuple(TransactionId tid, Tuple t)
             throws DbException, IOException, TransactionAbortedException {
         // some code goes here
-        return null;
-        // not necessary for lab1
+        int np = numPages();
+        for (int i = 0; i < np; i++) {
+            HeapPage p = (HeapPage) Database.getBufferPool().getPage(tid, new HeapPageId(getId(), i), Permissions.READ_WRITE);
+            try {
+                p.insertTuple(t);
+                return createList(p);
+            } catch (DbException e) {
+            }
+        }
+        writePage(new HeapPage(new HeapPageId(getId(), np), HeapPage.createEmptyPageData()));
+
+        HeapPage p = (HeapPage) Database.getBufferPool().getPage(tid, new HeapPageId(getId(), np), Permissions.READ_WRITE);
+        p.insertTuple(t);
+        return createList(p);
     }
 
     // see DbFile.java for javadocs
     public ArrayList<Page> deleteTuple(TransactionId tid, Tuple t) throws DbException,
             TransactionAbortedException {
         // some code goes here
-        return null;
-        // not necessary for lab1
+        HeapPage p = (HeapPage) Database.getBufferPool().getPage(tid, t.getRecordId().getPageId(), Permissions.READ_WRITE);
+        try {
+            p.deleteTuple(t);
+            return createList(p);
+        } catch (DbException e) {
+        }
+        return createList(p);
     }
 
     class It implements DbFileIterator {
