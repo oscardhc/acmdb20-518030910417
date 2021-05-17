@@ -1,0 +1,22 @@
+*  Describe any design decisions you made, including your choice of page
+   eviction policy. If you used something other than a nested-loops join,
+   describe the tradeoffs of the algorithm you chose.
+
+    I implement the basic nested-loops join. And for HashEquiJoin, it inherits the basic Join operator, only overriding the internal method by which I use to find next non-null tuple.
+
+    For other operators involving only one DbIterator, like Filter and Insert, they all inherit SingleChildOperator class which implements basic open, close, get/set children methods.
+
+    When inserting causes a new page being added to the HeapFile, I flush a new empty page to file first, then get that page by BufferPool in order to be consistent with other page-related operations.
+
+*  Discuss and justify any changes you made to the API.
+
+    No changes are made to existing API, but I added some utility classes like Pair, SingleChildOperator.
+
+*  Describe any missing or incomplete elements of your code.
+
+    No missing elements.
+
+*  Describe how long you spent on the lab, and whether there was anything
+   you found particularly difficult or confusing.
+
+   I spent about 2 hours and a half on the lab. The operators are quite straightforward, but the tuple insertion and deletion are a little bit confusing. I actually failed on a previous test when I passed all new tests. It was because under some situations dirty pages were actually not added to the buffer pool.
