@@ -1,8 +1,21 @@
 package simpledb;
 
+import java.util.HashMap;
+
 /** A class to represent a fixed-width histogram over a single integer-based field.
  */
-public class IntHistogram {
+public class IntHistogram extends Histogram<Integer> {
+
+    private int buckets, min, max, sm;
+    private int[] hist;
+    private double binWidth;
+    static HashMap<Predicate.Op, Predicate.Op> rev;
+    static {
+        rev = new HashMap<Predicate.Op, Predicate.Op>();
+        rev.put(Predicate.Op.NOT_EQUALS, Predicate.Op.EQUALS);
+        rev.put(Predicate.Op.LESS_THAN, Predicate.Op.GREATER_THAN_OR_EQ);
+        rev.put(Predicate.Op.LESS_THAN_OR_EQ, Predicate.Op.GREATER_THAN);
+    }
 
     /**
      * Create a new IntHistogram.
@@ -22,14 +35,23 @@ public class IntHistogram {
      */
     public IntHistogram(int buckets, int min, int max) {
     	// some code goes here
+        this.buckets = buckets;
+        this.min = min;
+        this.max = max;
+        this.sm  = 0;
+        this.hist = new int[buckets];
+        this.binWidth = 1.0 * (max - min + 1) / buckets;
     }
 
     /**
      * Add a value to the set of values that you are keeping a histogram of.
      * @param v Value to add to the histogram
      */
-    public void addValue(int v) {
+    @Override
+    public void addValue(Integer v) {
     	// some code goes here
+        hist[(int)((v - min) / binWidth)] += 1;
+        sm += 1;
     }
 
     /**
@@ -42,10 +64,25 @@ public class IntHistogram {
      * @param v Value
      * @return Predicted selectivity of this particular operator and value
      */
-    public double estimateSelectivity(Predicate.Op op, int v) {
-
+    @Override
+    public double estimateSelectivity(Predicate.Op op, Integer v) {
     	// some code goes here
-        return -1.0;
+        int bin = (int)((v - min) / binWidth);
+        switch (op) {
+            case EQUALS:
+                if (bin < 0 || bin >= buckets) return 0.0;
+                return 1.0 * hist[bin] / binWidth / sm;
+            case GREATER_THAN:
+                if (bin < 0) return 1.0;
+                else if (bin >= buckets) return 0.0;
+                double res = 1.0 * hist[bin] / binWidth * (min + bin * binWidth - v);
+                for (int i = bin + 1; i < buckets; i++) res += hist[i];
+                return res / sm;
+            case GREATER_THAN_OR_EQ:
+                return estimateSelectivity(Predicate.Op.GREATER_THAN, v) + estimateSelectivity(Predicate.Op.EQUALS, v);
+            default:
+                return 1 - estimateSelectivity(rev.get(op), v);
+        }
     }
     
     /**

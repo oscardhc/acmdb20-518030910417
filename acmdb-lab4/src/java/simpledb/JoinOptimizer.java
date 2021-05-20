@@ -13,6 +13,7 @@ import javax.swing.tree.*;
 public class JoinOptimizer {
     LogicalPlan p;
     Vector<LogicalJoinNode> joins;
+    PlanCache pc;
 
     /**
      * Constructor
@@ -25,6 +26,7 @@ public class JoinOptimizer {
     public JoinOptimizer(LogicalPlan p, Vector<LogicalJoinNode> joins) {
         this.p = p;
         this.joins = joins;
+        this.pc = new PlanCache();
     }
 
     /**
@@ -111,7 +113,8 @@ public class JoinOptimizer {
             // HINT: You may need to use the variable "j" if you implemented
             // a join algorithm that's more complicated than a basic
             // nested-loops join.
-            return -1.0;
+            if (j.p == Predicate.Op.EQUALS) return cost1 + cost2 + card1 * card2;
+            else return cost1 + cost1 * card2 + card1 * card2;
         }
     }
 
@@ -157,6 +160,13 @@ public class JoinOptimizer {
             Map<String, Integer> tableAliasToId) {
         int card = 1;
         // some code goes here
+        if (joinOp == Predicate.Op.EQUALS) {
+            if (t1pkey) card = card2;
+            else if (t2pkey) card = card1;
+            else card = Integer.max(card1, card2);
+        } else {
+            card = (int)(card1 * card2 * 0.3);
+        }
         return card <= 0 ? 1 : card;
     }
 
@@ -220,8 +230,23 @@ public class JoinOptimizer {
         //Not necessary for labs 1--3
 
         // some code goes here
-        //Replace the following
-        return joins;
+        for (int i = 1; i <= joins.size(); i++) {
+            for (Set<LogicalJoinNode> s: enumerateSubsets(joins, i)) {
+                Vector<LogicalJoinNode> bestPlan = null;
+                double bestCost = Double.MAX_VALUE;
+                int bestCard = 0;
+                for (LogicalJoinNode n: s) {
+                    CostCard cur = computeCostAndCardOfSubplan(stats, filterSelectivities, n, s, bestCost, pc);
+                    if (cur != null && cur.cost < bestCost) {
+                        bestCost = cur.cost;
+                        bestCard = cur.card;
+                        bestPlan = cur.plan;
+                    }
+                }
+                pc.addPlan(s, bestCost, bestCard, bestPlan);
+            }
+        }
+        return pc.getOrder(new HashSet<>(joins));
     }
 
     // ===================== Private Methods =================================

@@ -1,5 +1,6 @@
 package simpledb;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -66,6 +67,11 @@ public class TableStats {
      */
     static final int NUM_HIST_BINS = 100;
 
+    private int ioCost;
+    private Histogram[] hists;
+    private DbFile f;
+    private int numTuples = 0;
+
     /**
      * Create a new TableStats object, that keeps track of statistics on each
      * column of a table
@@ -85,6 +91,50 @@ public class TableStats {
         // necessarily have to (for example) do everything
         // in a single scan of the table.
         // some code goes here
+        ioCost = ioCostPerPage;
+        f = Database.getCatalog().getDatabaseFile(tableid);
+        try {
+            DbFileIterator it = f.iterator(new TransactionId());
+            it.open();
+            int n = f.getTupleDesc().numFields();
+            hists = new Histogram[n];
+
+            int[] mi = new int[n];
+            int[] ma = new int[n];
+            for (int i = 0; i < n; i++) {mi[i] = (1<<30); ma[i] = -(1<<30);}
+
+            while (it.hasNext()) {
+                Tuple t = it.next();
+                numTuples += 1;
+                for (int i = 0; i < n; i++) {
+                    if (f.getTupleDesc().getFieldType(i) == Type.INT_TYPE) {
+                        int cur = ((IntField)(t.getField(i))).getValue();
+                        mi[i] = Integer.min(mi[i], cur);
+                        ma[i] = Integer.max(ma[i], cur);
+                    }
+                }
+            }
+            for (int i = 0; i < n; i++) {
+                if (f.getTupleDesc().getFieldType(i) == Type.INT_TYPE) {
+                    hists[i] = new IntHistogram(Integer.min(NUM_HIST_BINS, ma[i] - mi[i] + 1), mi[i], ma[i]);
+                } else {
+                    hists[i] = new StringHistogram(NUM_HIST_BINS);
+                }
+            }
+            it.rewind();
+            while (it.hasNext()) {
+                Tuple t = it.next();
+                for (int i = 0; i < n; i++) {
+                    if (f.getTupleDesc().getFieldType(i) == Type.INT_TYPE) {
+                        hists[i].addValue(((IntField)(t.getField(i))).getValue());
+                    } else {
+                        hists[i].addValue(((StringField)(t.getField(i))).getValue());
+                    }
+                }
+            }
+        } catch(Exception e) {
+
+        }
     }
 
     /**
@@ -101,7 +151,7 @@ public class TableStats {
      */
     public double estimateScanCost() {
         // some code goes here
-        return 0;
+        return ((HeapFile)f).numPages() * ioCost;
     }
 
     /**
@@ -115,7 +165,7 @@ public class TableStats {
      */
     public int estimateTableCardinality(double selectivityFactor) {
         // some code goes here
-        return 0;
+        return (int)(selectivityFactor * numTuples);
     }
 
     /**
@@ -148,7 +198,12 @@ public class TableStats {
      */
     public double estimateSelectivity(int field, Predicate.Op op, Field constant) {
         // some code goes here
-        return 1.0;
+
+        if (hists[field] instanceof IntHistogram) {
+            return hists[field].estimateSelectivity(op, ((IntField)constant).getValue());
+        } else {
+            return hists[field].estimateSelectivity(op, ((StringField)constant).getValue());
+        }
     }
 
     /**
@@ -156,7 +211,7 @@ public class TableStats {
      * */
     public int totalTuples() {
         // some code goes here
-        return 0;
+        return numTuples;
     }
 
 }
